@@ -1,0 +1,3 @@
+Dataset comes from Natural Stories Corpus: https://github.com/languageMIT/naturalstories
+
+Contains self-paced reading (SPR) times from 181 native English speakers collected online for 10 texts, around 1000 words each. Each participant read 5 stories, anwered 6 comprehension questions. Data exclusion if less than 5 correct answers or RTs less than 100 ms or greater than 3000 ms. 

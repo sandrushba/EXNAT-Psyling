@@ -1,0 +1,83 @@
+---
+title: "Replication NSC"
+author: "Sandra Martin"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    code_folding: hide
+editor_options: 
+  chunk_output_type: console
+---
+```{r file setup, echo = FALSE}
+rm(list = ls()) # clear environment
+knitr::opts_chunk$set() # set default options for all code blocks in this document
+options(scipen = 999) # don't use scientific notation for very large or small numbers
+n.cores <- max(1, parallel::detectCores() %/% 2, na.rm = T) # Use half of the available cores
+```
+
+# Load packages
+```{r packages, echo = FALSE, message = FALSE, warning = TRUE}
+# Create a list with needed libraries
+pkgs <- c("here", # for working with relative paths
+          "ggplot2", # for plots
+          "tidyverse",
+          "forcats",
+          "reshape2",
+          "see",
+          "glmm.hp",
+          "partR2",
+          "lme4",
+          "lmerTest",
+          "mgcv",
+          "marginaleffects",
+          "emmeans",
+          "performance",
+          "effectsize",
+          "egg") # creating patchwork plots
+
+# Load each listed library, check if it's already installed
+# and install if necessary
+for (pkg in pkgs){
+  if(!require(pkg, character.only = TRUE)){
+    install.packages(pkg)
+    library(pkg, character.only = TRUE)
+  }
+}
+
+today <- Sys.Date()
+today <- format(today, format="%y%m%d")
+
+emm_options(rg.limit = 1000000) # for emm calculations
+```
+
+# Settings for plots
+```{r Theme for plots, echo = FALSE}
+# # Custom colour palettes for the plots:
+# palet_task_condition <- c("#D2BFE7",
+#                       "#977FB2") 
+# palet_task_condition_lines <- c("#ad8bd3",
+#                       "#7B5EC6") 
+# 
+# # for distinguishing between cognitive load conditions: 
+#  cols_reading <- c("#575A7B", # Reading Only
+#                  "#ED9201", # 1-back
+#                  "#982126") # 2-back
+# #cols_reading <- c("#F8A29E", "#9F4D48", "#4B201D", "#D2BFF5", "#9b84b7", "#56476D")
+# cols_reading <- c("#F8A29E", "#9F4D48", "#4B201D", "#E9B3FB", "#85409D", "#3B0270")
+# #cols_dual <- c("#D2BFE7", "#9b84b7", "#56476D")
+# cols_nback <- c("#74BDC7", "#408A95", "#064E58", "#9CD5FF", "#7AAACE", "#355872", "#FFCE99", "#FF9644", "#562F00") #"#156570",
+# 
+# cols_dualContrast <- c("#B29675", "#575A7B")
+# 
+# # creating a function for std.error
+# std.error <- function(x, na.rm = TRUE){sd(x, na.rm = TRUE)/sqrt(length(x[!is.na(x)]))}
+```
+
+# Load data
+```{r}
+df_with_stopwords <- read.csv(here("Data/data_with_stopwords.csv"))
+
+# load pre-computed hierarchical partitioning (takes several hours to compute)
+r2_LLM1_glmmhp <- readRDS(here("Data/r2_LLM1_glmmhp.rds"))
+```

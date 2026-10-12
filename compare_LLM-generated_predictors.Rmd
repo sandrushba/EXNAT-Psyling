@@ -25,7 +25,9 @@ pkgs <- c("here", # for working with relative paths
           "forcats",
           "reshape2",
           "see",
+          "ggrepel",
           "glmm.hp",
+          "gam.hp",
           "partR2",
           "lme4",
           "lmerTest",
@@ -53,25 +55,25 @@ emm_options(rg.limit = 1000000) # for emm calculations
 
 # Settings for plots
 ```{r Theme for plots, echo = FALSE}
-# # Custom colour palettes for the plots:
-# palet_task_condition <- c("#D2BFE7",
-#                       "#977FB2") 
-# palet_task_condition_lines <- c("#ad8bd3",
-#                       "#7B5EC6") 
-# 
-# # for distinguishing between cognitive load conditions: 
-#  cols_reading <- c("#575A7B", # Reading Only
-#                  "#ED9201", # 1-back
-#                  "#982126") # 2-back
-# #cols_reading <- c("#F8A29E", "#9F4D48", "#4B201D", "#D2BFF5", "#9b84b7", "#56476D")
-# cols_reading <- c("#F8A29E", "#9F4D48", "#4B201D", "#E9B3FB", "#85409D", "#3B0270")
-# #cols_dual <- c("#D2BFE7", "#9b84b7", "#56476D")
-# cols_nback <- c("#74BDC7", "#408A95", "#064E58", "#9CD5FF", "#7AAACE", "#355872", "#FFCE99", "#FF9644", "#562F00") #"#156570",
-# 
-# cols_dualContrast <- c("#B29675", "#575A7B")
-# 
-# # creating a function for std.error
-# std.error <- function(x, na.rm = TRUE){sd(x, na.rm = TRUE)/sqrt(length(x[!is.na(x)]))}
+# Custom colour palettes for the plots:
+palet_task_condition <- c("#D2BFE7",
+                      "#977FB2")
+palet_task_condition_lines <- c("#ad8bd3",
+                      "#7B5EC6")
+
+# for distinguishing between cognitive load conditions:
+ cols_reading <- c("#575A7B", # Reading Only
+                 "#ED9201", # 1-back
+                 "#982126") # 2-back
+#cols_reading <- c("#F8A29E", "#9F4D48", "#4B201D", "#D2BFF5", "#9b84b7", "#56476D")
+cols_reading <- c("#F8A29E", "#9F4D48", "#4B201D", "#E9B3FB", "#85409D", "#3B0270")
+#cols_dual <- c("#D2BFE7", "#9b84b7", "#56476D")
+cols_nback <- c("#74BDC7", "#408A95", "#064E58", "#9CD5FF", "#7AAACE", "#355872", "#FFCE99", "#FF9644", "#562F00") #"#156570",
+
+cols_dualContrast <- c("#B29675", "#575A7B")
+
+# creating a function for std.error
+std.error <- function(x, na.rm = TRUE){sd(x, na.rm = TRUE)/sqrt(length(x[!is.na(x)]))}
 ```
 
 # Load data
@@ -144,6 +146,10 @@ df_PL_estimates_wide <- df_PL_estimates %>%
                                Familiarity = "GPT_FAM",
                                Valence = "GPT_val"),
   estimate = fct_relevel(estimate, "Familiarity", "Age of acquisition", "Concreteness", "Valence", "Arousal"))
+
+df_PL_estimates_wide |> 
+  group_by(estimate) |> 
+  reframe(range(value))
 
 ggplot(df_PL_estimates_wide, aes(x = estimate, y = value, colour = estimate, fill = estimate)) +
   geom_violinhalf(width=1) +
@@ -218,14 +224,14 @@ ggplot(plot_df, aes(Var1, Var2, fill = cor)) +
 ```
 
 
-# Mixed-Effects Regression
+# Linear Mixed-Effects Regression
 ## Baseline model
 ```{r}
 # prepare data for models
 df_with_stopwords$log_RT <- log(df_with_stopwords$RT)
 df_with_stopwords$log_previous_RT <- log(df_with_stopwords$previous_RT)
 
-lmm_baseline2 <- lme4::lmer(log_RT ~
+lmm_baseline <- lme4::lmer(log_RT ~
                    punctuation +
                    recording_location +
                    log_previous_RT +
@@ -258,8 +264,8 @@ compare_performance(lmm_baseline, glmm_baseline, rank = TRUE)
 # LMM performs better so we stick with LMM
 ```
 
-## Research Question: Which of the five GPTs (fam, concr, val, arou, aoa) accounts for most variance?
-
+## Comparison of five GPT estimates
+Research Question: Which of the five GPTs (fam, concr, val, arou, aoa) accounts for most variance?
 ```{r}
 lmm_all_GPT_estimates <- lme4::lmer(log_RT ~
                    # predictors from baseline model
@@ -295,7 +301,7 @@ check_model(lmm_all_GPT_estimates)
 ## Variance partitioning of LMM with GPT estimates
 ```{r}
 # glmm.hp ----
-r2_LLM1_glmmhp <- glmm.hp(lmm_all_GPT_estimates_subset)
+# r2_LLM1_glmmhp <- glmm.hp(lmm_all_GPT_estimates) # takes several hours to compute that's why I saved and load a pre-computed version
 saveRDS(r2_LLM1_glmmhp, file = here("Data/r2_LLM1_glmmhp.rds"))
 
 r2_LLM1_glmmhp
@@ -314,45 +320,210 @@ R2_LLM1
 summary(R2_LLM1)
 ```
 
-# GAMM model
+### Plot GLMMhp results
 ```{r}
-#### large model:
-data <- data %>% 
+r2_table <- r2_LLM1_glmmhp$hierarchical.partitioning
+r2_table <- as.data.frame(r2_table)
+r2_table$term <- rownames(r2_table)
+
+r2_table <- r2_table |> 
+  mutate(
+    term = fct_recode(as.factor(term),
+      Age = "age",
+      "RT previous trial" = "log_previous_RT",
+      Group = "recording_location",
+      "Word length" = "word_length_single",
+      Punctuation = "punctuation",
+      "Trial Nr" = "trial_nr",
+      "Block Nr" = "block_nr"
+    )
+  )
+
+# Donut plot as overview ----
+plot_df <- r2_table %>%
+  dplyr::select(term, Individual, `I.perc(%)`) %>%
+  distinct()
+
+# Everything not in main terms gets summarises as other
+main_terms <- c("Age", "RT previous trial", "Group")
+# Alternative: summarize all GPT estimates 
+# r2_table_GPT_summarized <- r2_table %>%
+#   mutate(
+#     term = as.character(term),
+#     percentage = if_else(
+#       str_starts(term, "GPT"),
+#       sum(`I.perc(%)`[str_starts(term, "GPT")]), `I.perc(%)`),
+#     term_new = ifelse(
+#       str_starts(term, "GPT"), "GPT estimates", term)) |> 
+#   arrange(desc(percentage)) |> 
+#   mutate(term_new = factor(term_new, levels = unique(term_new)))
+
+plot_df <- plot_df %>%
+  mutate(
+    term_plot = if_else(
+      term %in% main_terms,
+      term, "Other")) %>%
+  group_by(term_plot) %>%
+  summarise(individual = sum(Individual), percentage = sum(`I.perc(%)`), .groups = "drop") %>%
+  arrange(desc(percentage)) %>%
+  mutate(
+    fraction = percentage,
+    ymax = cumsum(fraction),
+    ymin = lag(ymax, default = 0),
+    label_pos = (ymax + ymin) / 2,
+    label_y = case_when(term_plot == "Group" ~ label_pos -6, TRUE ~ label_pos),
+    label_x = case_when(term_plot == "Group" ~ 6.2, TRUE ~ 3.8),
+    label = paste0(term_plot, "\n", sprintf("%.2f%%", percentage), sprintf("(%.2f)", individual)))
+
+ggplot(plot_df, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 2.5, fill = term_plot)) +
+  geom_rect(color = "white", linewidth = 0.8) +
+  geom_text_repel(aes(x = label_x, y = label_y, label = label), 
+    inherit.aes = FALSE,
+    direction = "y",
+    nudge_x = 0.8,
+    hjust = 0,
+    size = 3.5,
+    segment.color = "grey50",
+    segment.size = 0.4,
+    box.padding = 0.3,
+    point.padding = 0.7,
+    min.segment.length = 0,
+    max.overlaps = Inf,
+    seed = 123) +
+  coord_polar(theta = "y", clip = "off") +
+  xlim(c(0, 7.2)) +
+  annotate(
+    "text",
+    x = 0,
+    y = 0,
+    label = "Full-model\n R2 = 0.54",
+    size = 3,
+    fontface = "bold") +
+  scale_fill_manual(values = c("Age" = "#B35806", "RT previous trial" = "#F1A340", "Group" = "#FEE0B6", "Other" = "#542788")) +
+  theme_void() +
+  guides(fill = "none")
+
+# Horizontal bar chart zooming into GPT estimates ----
+other_df <- r2_table %>%
+  mutate(term = as.character(term)) %>%
+  filter(!term %in% main_terms) %>%
+  mutate(
+    predictor_type = if_else(
+      str_starts(term, "GPT"),
+      "GPT estimates",
+      "Other predictors"),
+    predictor_type = factor(
+      predictor_type,
+      levels = c("GPT estimates", "Other predictors")),
+    percentage = abs(`I.perc(%)`),
+    term = fct_recode(term,
+          "Age of acquisition" = "GPT_AoA_ft",
+          Arousal = "GPT_arou",
+          Concreteness = "GPT_concr",
+          Familiarity = "GPT_FAM",
+          Valence = "GPT_val")) %>%
+  arrange(predictor_type, desc(percentage)) |> 
+  mutate(term = factor(term, levels = rev(term)))
+  #mutate(term_label = sprintf("%s (%.2f%%)", term, percentage),
+  #       term_label = factor(term_label, levels = rev(term_label)))
+
+ggplot(other_df, aes(x = term, y = abs(Individual), fill = predictor_type)) +
+  geom_col(width = 0.7) +
+  geom_text(aes(label = sprintf("%.4f", abs(Individual))), hjust = -0.15, size = 3) +
+  #geom_text(aes(label = sprintf("%.2f%%", percentage)), hjust = -0.15, size = 3) +
+  coord_flip() +
+  scale_fill_manual(values = c("GPT estimates" = "#542788", "Other predictors" = "#B2ABD2")) +
+  scale_y_continuous(name = expression("Individual contribution to marginal " * R^2), expand = expansion(mult = c(0.05, 0.22))) +
+  labs(x = NULL,) +
+  theme_minimal(base_size = 10) +
+  theme(panel.grid.major.y = element_blank(),
+    legend.position = "bottom")
+```
+
+# Non-linear Mixed Models
+## Baseline model
+```{r}
+df_with_stopwords <- df_with_stopwords %>% 
   ungroup() %>% 
   mutate(across(where(is.character), as.factor))
 
-data$duration_log <- log(data$duration)
+lmm_baseline <- lme4::lmer(log_RT ~
+                   punctuation +
+                   recording_location +
+                   log_previous_RT +
+                   word_length_single +
+                   block_nr +
+                   trial_nr +
+                   age +
+                   (1 | ID) +
+                   (1 | text_nr),
+                 data = df_with_stopwords,
+                 REML = FALSE
+                   )
 
-gam_complete_model_hypothesis_I <- bam(duration_log ~
-                                      s(GPT_FAM, k = 10) +
-                                      s(GPT_concr, k = 20) +
-                                      s(GPT_val, k = 20) +
-                                      s(GPT_arou, k = 20) +
-                                      s(GPT_AoA_ft) +
-                                      recording_location +
-                                      s(age) +
-                                      s(word_length_single) +
-                                      block_nr + # no smooth possible, has n = 6
-                                      s(trial_nr) +
-                                      s(ID, bs = "re") +
-                                      s(text_nr, bs = "re"),
-                                    data = data,
-                                    method = "fREML")
-                                    #discrete = TRUE)
+gamm_baseline <- bam(log_RT ~
+                  # parametric terms
+                  punctuation +
+                  recording_location +
+                  block_nr +
+                  # smooth terms
+                  s(age) +
+                  s(log_previous_RT, k = 20) +
+                  s(word_length_single) +
+                  s(trial_nr, k = 20) +
+                  s(ID, bs = "re") +
+                  s(text_nr, bs = "re"),
+                data = df_with_stopwords,
+                #method = "fREML")
+                discrete = TRUE)
 
-# compare LMM and GAMM
-compare_performance(complete_model_hypothesis_I, gam_complete_model_hypothesis_I, rank = T)
+gam.check(gamm_baseline, k.rep = 1000)
 
-gam.check(gam_complete_model_hypothesis_I, k.rep = 1000)
-
-summary(gam_complete_model_hypothesis_I)
-
-# R2 partitioning ----
-gam_complete_model_hypothesis_I_glmm_hp<- gam.hp(gam_complete_model_hypothesis_I) 
-#complete_model_hypothesis_I_glmm_hp<- glmm.hp(complete_model_hypothesis_I, commonality = TRUE) 
-saveRDS(gam_complete_model_hypothesis_I_glmm_hp, file = here("RData/gam_complete_model_hypothesis_I_glmm_hp.rds"))
+# Compare linear and non-linear baseline models
+compare_performance(lmm_baseline, gamm_baseline, rank = TRUE)
 ```
 
+## Comparison of five GPT estimates
+Research Question: Which of the five GPTs (fam, concr, val, arou, aoa) accounts for most variance?
+```{r}
+gamm_all_GPT_estimates <- gam(log_RT ~
+                  # parametric terms
+                  punctuation +
+                  recording_location +
+                  block_nr +
+                  # smooth terms
+                  s(age) +
+                  s(log_previous_RT, k = 20) +
+                  s(word_length_single, k = 15) +
+                  s(trial_nr, k = 20) +
+                  s(GPT_FAM, k = 10) +
+                  s(GPT_concr, k = 20) +
+                  s(GPT_val, k = 20) +
+                  s(GPT_arou, k = 20) +
+                  s(GPT_AoA_ft) + 
+                  s(ID, bs = "re") +
+                  s(text_nr, bs = "re"),
+                 data = df_with_stopwords,
+                   )
+
+gam.check(gamm_all_GPT_estimates, k.rep = 1000)
+
+# compare LMM and GAMM
+compare_performance(lmm_all_GPT_estimates, gamm_all_GPT_estimates)
+
+summary(gamm_all_GPT_estimates)
+
+check_concurvity(gamm_all_GPT_estimates)
+```
+
+## Variance partitioning of LMM with GPT estimates
+```{r}
+# glmm.hp ----
+r2_GAMM1_glmmhp <- gam.hp(gamm_all_GPT_estimates, type="adjR2") # takes several hours to compute that's why I saved and load a pre-computed version
+saveRDS(r2_GAMM1_glmmhp, file = here("Data/r2_GAMM1_glmmhp.rds"))
+
+r2_GAMM1_glmmhp
+```
 
 ```{r}
 nsc_words <- read.csv(here("Data/NaturalStoriesCorpus/words.tsv"), sep = "\t", header = T)

@@ -1,0 +1,81 @@
+experiments:
+
+   # german ratings
+
+  familiarity_german:
+    dataset_path: "german_words.xlsx"
+    dataset_column: "Word"
+    prompt_path: "familiarity_german.txt"
+    model_name: "gpt-4o-mini-2024-07-18"
+
+  valence_german:
+    dataset_path: "german_words.xlsx"
+    dataset_column: "Word"
+    prompt_path: "valence_german.txt"
+    model_name: "gpt-4o-mini-2024-07-18"
+
+  concreteness_german:
+    dataset_path: "german_words.xlsx"
+    dataset_column: "Word"
+    prompt_path: "concreteness_german.txt"
+    model_name: "gpt-4o-mini-2024-07-18"
+
+  arousal_german:
+    dataset_path: "german_words.xlsx"
+    dataset_column: "Word"
+    prompt_path: "arousal_german.txt"
+    model_name: "gpt-4o-mini-2024-07-18"
+
+  aoa_german:
+    dataset_path: "german_words.xlsx"
+    dataset_column: "Word"
+    prompt_path: "valence_german.txt"
+    model_name: "gpt-4o-mini-2024-07-18" ## add your fine-tuned model here if you wish.
+
+   # english ratings
+
+  familiarity_english:
+    dataset_path: "english_words.xlsx"
+    dataset_column: "Word"
+    prompt_path: "familiarity_english.txt"
+    model_name: "gpt-4o-mini-2024-07-18"
+
+  valence_english:
+    dataset_path: "english_words.xlsx"
+    dataset_column: "Word"
+    prompt_path: "valence_english.txt"
+    model_name: "gpt-4o-mini-2024-07-18"
+
+  concreteness_english:
+    dataset_path: "english_words.xlsx"
+    dataset_column: "Word"
+    prompt_path: "concreteness_english.txt"
+    model_name: "gpt-4o-mini-2024-07-18"
+
+  arousal_english:
+    dataset_path: "english_words.xlsx"
+    dataset_column: "Word"
+    prompt_path: "arousal_english.txt"
+    model_name: "gpt-4o-mini-2024-07-18"
+
+  aoa_english:
+    dataset_path: "english_words.xlsx"
+    dataset_column: "Word"
+    prompt_path: "aoa_english.txt"
+    model_name: "gpt-4o-mini-2024-07-18"
+
+finetuning:
+  aoa_german_ft:
+    # create finetuning dataset:
+    ft_dataset_path: "Birchenough_2016_AoA_german_3k.xlsx"
+    train_split_percentage: 0.6136852
+    random_state: 42
+    answer_column: "AoAestimate"
+    prompt_path: "aoa_finetuning_prompt.txt"
+    # prompt_assistant_path: ""
+    # execute finetuning:
+    dataset_finetune_name: "Birchenough_2016_AoA_german_3k.jsonl"
+    model_name: "gpt-4o-mini-2024-07-18"
+    especial_suffix: "aoa_german-ft-birchenough"
+
+

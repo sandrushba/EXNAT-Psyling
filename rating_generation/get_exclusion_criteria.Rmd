@@ -1,0 +1,32 @@
+---
+title: "get_exclusion_criteria"
+author: "CSTC"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## packages
+```{r}
+library(tidyverse)
+library(hunspell)
+```
+
+## data
+```{r}
+data <- read.csv("") ## add your data here. it should contain at least: 1. word column, 2. corresponding familiarity ratings
+```
+
+## criterium A
+```{r}
+## words with low familiarity (< 3.5) are excluded because other ratings (f.e. valence) are not useful if the participant does not know the meaning of a word.
+data <- data %>% mutate(criterium_A = familiarity_german >= 3.5) 
+```
+
+## criterium B
+```{r}
+## words that are not found in the dictionary are also excluded
+data$criterium_B <- hunspell_check(as.character(data$Word), dict = "de_DE_frami") # change to dict = "en_US" for english words!
+```

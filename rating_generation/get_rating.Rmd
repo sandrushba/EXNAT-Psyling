@@ -1,0 +1,90 @@
+---
+title: "get_rating"
+author: "CSTC"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## packages
+```{r}
+library(tidyverse)
+```
+
+## data
+```{r}
+## before you load the file you need to convert the results jsonl file to csv
+rating_data <- read.csv("") 
+word_data <- readxl::read_xlsx("") 
+```
+
+## loop
+```{r}
+dataset <- c("") 
+
+for (name in dataset) {
+  
+  df <- get(name)
+  
+  # renaming relevant columns
+  df <- df %>% rename(c(
+  "token_1" = "response.body.choices.0.logprobs.content.0.top_logprobs.0.token",
+  "logprob_1" = "response.body.choices.0.logprobs.content.0.top_logprobs.0.logprob",
+  "token_2" = "response.body.choices.0.logprobs.content.0.top_logprobs.1.token",
+  "logprob_2" = "response.body.choices.0.logprobs.content.0.top_logprobs.1.logprob",
+  "token_3" = "response.body.choices.0.logprobs.content.0.top_logprobs.2.token",
+  "logprob_3" = "response.body.choices.0.logprobs.content.0.top_logprobs.2.logprob",
+  "token_4" = "response.body.choices.0.logprobs.content.0.top_logprobs.3.token",
+  "logprob_4" = "response.body.choices.0.logprobs.content.0.top_logprobs.3.logprob",
+  "token_5" = "response.body.choices.0.logprobs.content.0.top_logprobs.4.token",
+  "logprob_5" = "response.body.choices.0.logprobs.content.0.top_logprobs.4.logprob"))
+  
+  # keeping only relevant columns
+  df <- df %>% select(c(
+  "token_1",
+  "logprob_1",
+  "token_2",
+  "logprob_2",
+  "token_3",
+  "logprob_3",
+  "token_4",
+  "logprob_4",
+  "token_5",
+  "logprob_5"
+  ))
+    
+  # extracting linear probability from log-probabilities
+  df$prob_1 <- exp(df$logprob_1)
+  df$prob_2 <- exp(df$logprob_2)
+  df$prob_3 <- exp(df$logprob_3)
+  df$prob_4 <- exp(df$logprob_4)
+  df$prob_5 <- exp(df$logprob_5)
+  
+  # computing weighted-sum
+  rating <- rowSums(cbind(
+    as.numeric(df$token_1) * df$prob_1,
+    as.numeric(df$token_2) * df$prob_2,
+    as.numeric(df$token_3) * df$prob_3,
+    as.numeric(df$token_4) * df$prob_4,
+    as.numeric(df$token_5) * df$prob_5), na.rm = TRUE)
+  
+  # rounding the rating to two decimals
+  df$rating <- round(rating, 2)
+
+  # keeping only rating column
+  df <- df %>% select(rating)
+  
+  assign(name, df)
+} 
+```
+
+## combining rating with word stimuli in one df
+```{r}
+data <- cbind(word_data, rating_data)
+```
+
+
+
+
